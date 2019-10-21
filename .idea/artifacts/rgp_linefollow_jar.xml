@@ -1,0 +1,16 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="rgp-linefollow:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/rgp_linefollow_jar</output-path>
+    <root id="archive" name="rgp-linefollow.jar">
+      <element id="module-output" name="rgp-linefollow" />
+      <element id="extracted-dir" path="C:/Program Files/leJOS EV3/lib/ev3/ev3classes.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/leJOS EV3/lib/ev3/dbusjava.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/leJOS EV3/lib/pc/3rdparty/commons-cli.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/leJOS EV3/lib/pc/3rdparty/jcommon.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/leJOS EV3/lib/pc/3rdparty/jfreechart.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/leJOS EV3/lib/pc/3rdparty/jsch-0.1.50.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/leJOS EV3/lib/pc/ev3tools.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="C:/Program Files/leJOS EV3/lib/ev3/3rdparty/opencv-2411.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
