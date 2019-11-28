@@ -13,20 +13,23 @@ import lejos.hardware.sensor.SensorMode;
 import lejos.robotics.Color;
 import lejos.robotics.RegulatedMotor;
 import lejos.robotics.SampleProvider;
+import lejos.utility.Delay;
 
 public class LineFollow {
 
     public static final float BLACK = 0.07f;
     public static final float MID = 0.15f;
     public static final float WHITE = 0.24f;
-    private static float kp = 5f;
-    private static float kd = 0.1f;
+    private static float kp = 1400f;
+    private static float kd = 0f;
     private static float ki = 0f;
     private static RegulatedMotor motorRight;
     private static RegulatedMotor motorLeft;
     private static RegulatedMotor ultrasoundMotor;
     private static SensorMode colorSensor;
     private static SampleProvider ultrasoundSensor;
+    private static float[] sample;
+    private static float[] ultrasoundSample;
 
     public static void main(String[] args) {
         motorRight = new EV3LargeRegulatedMotor(MotorPort.A);
@@ -41,9 +44,10 @@ public class LineFollow {
         /*colorSensor.setCurrentMode("Red");
         colorSensor.setFloodlight(Color.RED);
         colorSensor.setFloodlight(true);*/
-        float[] sample = new float[colorSensor.sampleSize()];
-        float[] ultrasoundSample = new float[ultrasoundSensor.sampleSize()];
-        ultrasoundSample[0] = 1f;
+        sample = new float[colorSensor.sampleSize()];
+        ultrasoundSample = new float[ultrasoundSensor.sampleSize()];
+        colorSensor.fetchSample(sample, 0);
+        ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
         float derivative = 0f;
         float integral = 0f;
@@ -51,7 +55,7 @@ public class LineFollow {
 
 
         while (true) {
-            while(ultrasoundSample[0] > 0){
+            while(ultrasoundSample[0] > 0.1f){
                 g.clear();
 
                 colorSensor.fetchSample(sample, 0);
@@ -61,13 +65,13 @@ public class LineFollow {
                 g.drawString(lightLevel +" : " + ultrasoundDistance + " m ", SW/2, SH/2, GraphicsLCD.BASELINE|GraphicsLCD.HCENTER);
                 g.refresh();
 
-                float error = lightLevel - MID;
+                float error = MID - lightLevel;
                 integral += error;
                 derivative = error - previousError;
 
-                //pidSpeed(error, derivative, integral);
+                pidSpeed(error, derivative, integral);
 
-
+                Delay.msDelay(10);
 
             }
 
@@ -77,14 +81,29 @@ public class LineFollow {
     }
 
     private static void avoidObstacle() {
-        ultrasoundMotor.rotateTo(40);
-        int closestAngle = 40;
-        float[] ultrasoundDistance = new float[1];
+        ultrasoundMotor.rotateTo(-90);
 
-        for(int i=0; i < 80; i+=10){
+        float derivative = 0f;
+        float integral = 0f;
+        float previousError = 0f;
 
+        colorSensor.fetchSample(sample, 0);
+        ultrasoundSensor.fetchSample(ultrasoundSample, 0);
+
+        while(Math.abs(sample[0]) < 0.18f){
+            float error = 0.05f - ultrasoundSample[0];
+            integral += error;
+            derivative = error - previousError;
+
+            pidSpeed(error, derivative, integral);
+            colorSensor.fetchSample(sample, 0);
+            ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
         }
+
+        Delay.msDelay(1000);
+        ultrasoundMotor.rotateTo(0);
+
     }
 
     private static void pidSpeed(float proportional, float derivative, float integral){
