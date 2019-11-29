@@ -14,12 +14,14 @@ import lejos.robotics.RegulatedMotor;
 import lejos.robotics.SampleProvider;
 import lejos.utility.Delay;
 
+import java.io.File;
+
 public class LineFollowBot {
 
     public static final float BLACK = 0.07f;
     public static final float MID = 0.15f;
     public static final float WHITE = 0.24f;
-    private static float kp = 1500f;
+    private static float kp = 1600f;
     private static float kd = 0f;
     private static float ki = 7.5f;
     private RegulatedMotor motorRight;
@@ -29,12 +31,13 @@ public class LineFollowBot {
     private SampleProvider ultrasoundSensor;
     private float[] colorSample;
     private float[] ultrasoundSample;
+    private float[] redSample;
     private int sw;
     private int sh;
     private GraphicsLCD g;
 
     public LineFollowBot() {
-        //Sound.playSample(new File("beatz.wav"));
+        //Sound.playSample(new File("despacito.wav"));
         motorRight = new EV3LargeRegulatedMotor(MotorPort.A);
         motorLeft = new EV3LargeRegulatedMotor(MotorPort.B);
         ultrasoundMotor = new EV3MediumRegulatedMotor(MotorPort.C);
@@ -45,6 +48,8 @@ public class LineFollowBot {
         sh = g.getHeight();
         colorSample = new float[colorSensor.sampleSize()];
         ultrasoundSample = new float[ultrasoundSensor.sampleSize()];
+
+        redSample = new float[colorSensor.sampleSize()];
         colorSensor.fetchSample(colorSample, 0);
         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
     }
@@ -59,18 +64,23 @@ public class LineFollowBot {
         float derivative = 0f;
         float integral = 0f;
         float previousError = 0f;
-
+        int counter = 0;
 
         while (!Button.LEFT.isDown()) {
 
-            colorSensor.setCurrentMode("ColorID");
-            colorSensor.fetchSample(colorSample, 0);
-
-            if (colorSample[0] != 5) {
+            counter++;
+            if (counter > 10) {
+                colorSensor.setCurrentMode("ColorID");
+                colorSensor.fetchSample(redSample, 0);
+                Delay.msDelay(20);
+                counter = 0;
+                colorSensor.setCurrentMode("Red");
+            }
+            //System.out.println(colorSample[0]);
+            if (redSample[0] != 0) {
 
                 if (ultrasoundSample[0] > 0.1f) {
                     g.clear();
-                    colorSensor.setCurrentMode("Red");
                     colorSensor.fetchSample(colorSample, 0);
                     ultrasoundSensor.fetchSample(ultrasoundSample, 0);
                     if (colorSample[0] < 0.4) {
@@ -93,6 +103,10 @@ public class LineFollowBot {
                 } else {
                     avoidObstacle();
                 }
+            }else{
+                motorLeft.stop(true);
+                motorRight.stop(true);
+                Sound.playSample(new File("despacito.wav"));
             }
 
             Delay.msDelay(10);
@@ -162,8 +176,8 @@ public class LineFollowBot {
         motorRight.backward();
         motorLeft.backward();
         Delay.msDelay(400);
-        motorRight.stop();
-        motorLeft.stop();
+        motorRight.stop(true);
+        motorLeft.stop(true);
     }
 
     private void turnRight() {
