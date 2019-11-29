@@ -67,17 +67,17 @@ public class LineFollowBot {
 
                 colorSensor.fetchSample(colorSample, 0);
                 ultrasoundSensor.fetchSample(ultrasoundSample, 0);
-                float lightLevel = colorSample[0];
-                if (lightLevel < 0.4) {
+                if (colorSample[0] < 0.4) {
                     float ultrasoundDistance = ultrasoundSample[0];
-                    g.drawString(lightLevel + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                    g.drawString(colorSample[0] + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
                     g.refresh();
 
-                    float error = MID - lightLevel;
+                    float error = MID - colorSample[0];
 
                     if (Math.abs(error) < 0.005f) {//zero the integral windup
                         integral = 0;
                     }
+
                     integral = (integral * (2f / 3f)) + error; //dampen the integral
                     derivative = error - previousError;
 
@@ -108,8 +108,13 @@ public class LineFollowBot {
         while (Math.abs(colorSample[0]) >= 0.12f) {
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
-            float error = 0.05f - ultrasoundSample[0];
-            integral += error;
+            float error = 0.07f - ultrasoundSample[0];
+
+            if (Math.abs(error) < 0.005f) {//zero the integral windup
+                integral = 0;
+            }
+
+            integral = (integral * (2f / 3f)) + error;
             derivative = error - previousError;
 
             pidSpeed(error, derivative, integral, 2000, 0, 0);
@@ -137,8 +142,8 @@ public class LineFollowBot {
 
     private void pidSpeed(float proportional, float derivative, float integral, float kp, float kd, float ki) {
         float turn = kp * proportional + kd * derivative + ki * integral;
-        motorRight.setSpeed((int) (180 - turn));
-        motorLeft.setSpeed((int) (180 + turn));
+        motorLeft.setSpeed((int) (180 - turn));
+        motorRight.setSpeed((int) (180 + turn));
 
         motorRight.forward();
         motorLeft.forward();
