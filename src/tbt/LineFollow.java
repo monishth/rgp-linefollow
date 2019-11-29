@@ -2,6 +2,7 @@ package tbt;
 
 import lejos.hardware.BrickFinder;
 import lejos.hardware.Button;
+import lejos.hardware.Sound;
 import lejos.hardware.lcd.GraphicsLCD;
 import lejos.hardware.motor.EV3LargeRegulatedMotor;
 import lejos.hardware.motor.EV3MediumRegulatedMotor;
@@ -20,7 +21,7 @@ public class LineFollow {
     public static final float BLACK = 0.07f;
     public static final float MID = 0.15f;
     public static final float WHITE = 0.24f;
-    private static float kp = 1400f;
+    private static float kp = 1700f;
     private static float kd = 0f;
     private static float ki = 0f;
     private static RegulatedMotor motorRight;
@@ -61,15 +62,21 @@ public class LineFollow {
                 colorSensor.fetchSample(sample, 0);
                 ultrasoundSensor.fetchSample(ultrasoundSample, 0);
                 float lightLevel = sample[0];
-                float ultrasoundDistance = ultrasoundSample[0];
-                g.drawString(lightLevel +" : " + ultrasoundDistance + " m ", SW/2, SH/2, GraphicsLCD.BASELINE|GraphicsLCD.HCENTER);
-                g.refresh();
+                if (lightLevel < 0.4) {
+                    float ultrasoundDistance = ultrasoundSample[0];
+                    g.drawString(lightLevel +" : " + ultrasoundDistance + " m ", SW/2, SH/2, GraphicsLCD.BASELINE|GraphicsLCD.HCENTER);
+                    g.refresh();
 
-                float error = MID - lightLevel;
-                integral += error;
-                derivative = error - previousError;
+                    float error = MID - lightLevel;
 
-                pidSpeed(error, derivative, integral);
+                    if(Math.abs(error) < 0.005f){//zero the integral windup
+                        integral = 0;
+                    }
+                    integral = (integral * (2f / 3f)) + error; //dampen the integral
+                    derivative = error - previousError;
+
+                    pidSpeed(error, derivative, integral, kp, kd, ki);
+                }
 
                 Delay.msDelay(10);
 
@@ -81,8 +88,10 @@ public class LineFollow {
     }
 
     private static void avoidObstacle() {
-        ultrasoundMotor.rotateTo(-90);
 
+        Sound.twoBeeps();
+        turnRight();
+        ultrasoundMotor.rotateTo(-90);
         float derivative = 0f;
         float integral = 0f;
         float previousError = 0f;
@@ -90,23 +99,37 @@ public class LineFollow {
         colorSensor.fetchSample(sample, 0);
         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-        while(Math.abs(sample[0]) < 0.18f){
+        while(Math.abs(sample[0]) >= 0.12f){
+            colorSensor.fetchSample(sample, 0);
+            ultrasoundSensor.fetchSample(ultrasoundSample, 0);
             float error = 0.05f - ultrasoundSample[0];
             integral += error;
             derivative = error - previousError;
 
-            pidSpeed(error, derivative, integral);
-            colorSensor.fetchSample(sample, 0);
-            ultrasoundSensor.fetchSample(ultrasoundSample, 0);
+            pidSpeed(error, derivative, integral, 2000,0,0);
 
+            Delay.msDelay(10);
         }
 
-        Delay.msDelay(1000);
+        //turnRight();
+
+        Delay.msDelay(300);
         ultrasoundMotor.rotateTo(0);
 
     }
 
-    private static void pidSpeed(float proportional, float derivative, float integral){
+    private static void turnRight() {
+        motorRight.setSpeed(180);
+        motorLeft.setSpeed(180);
+        motorRight.backward();
+        motorLeft.forward();
+        Delay.msDelay(500);
+
+        motorLeft.stop();
+        motorRight.stop();
+    }
+
+    private static void pidSpeed(float proportional, float derivative, float integral, float kp, float kd, float ki){
         float speedOffset = kp * proportional + kd * derivative + ki * integral;
         motorRight.setSpeed((int) (180-speedOffset));
         motorLeft.setSpeed((int) (180+speedOffset));
