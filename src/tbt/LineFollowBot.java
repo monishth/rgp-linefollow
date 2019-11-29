@@ -10,7 +10,6 @@ import lejos.hardware.port.MotorPort;
 import lejos.hardware.port.SensorPort;
 import lejos.hardware.sensor.EV3ColorSensor;
 import lejos.hardware.sensor.EV3UltrasonicSensor;
-import lejos.hardware.sensor.SensorMode;
 import lejos.robotics.RegulatedMotor;
 import lejos.robotics.SampleProvider;
 import lejos.utility.Delay;
@@ -20,13 +19,13 @@ public class LineFollowBot {
     public static final float BLACK = 0.07f;
     public static final float MID = 0.15f;
     public static final float WHITE = 0.24f;
-    private static float kp = 1700f;
+    private static float kp = 1500f;
     private static float kd = 0f;
-    private static float ki = 0f;
+    private static float ki = 7.5f;
     private RegulatedMotor motorRight;
     private RegulatedMotor motorLeft;
     private RegulatedMotor ultrasoundMotor;
-    private SensorMode colorSensor;
+    private EV3ColorSensor colorSensor;
     private SampleProvider ultrasoundSensor;
     private float[] colorSample;
     private float[] ultrasoundSample;
@@ -35,10 +34,11 @@ public class LineFollowBot {
     private GraphicsLCD g;
 
     public LineFollowBot() {
+        //Sound.playSample(new File("beatz.wav"));
         motorRight = new EV3LargeRegulatedMotor(MotorPort.A);
         motorLeft = new EV3LargeRegulatedMotor(MotorPort.B);
         ultrasoundMotor = new EV3MediumRegulatedMotor(MotorPort.C);
-        colorSensor = new EV3ColorSensor(SensorPort.S1).getRedMode();
+        colorSensor = new EV3ColorSensor(SensorPort.S1);
         ultrasoundSensor = new EV3UltrasonicSensor(SensorPort.S2).getDistanceMode();
         g = BrickFinder.getDefault().getGraphicsLCD();
         sw = g.getWidth();
@@ -62,41 +62,61 @@ public class LineFollowBot {
 
 
         while (!Button.LEFT.isDown()) {
-            if (ultrasoundSample[0] > 0.1f) {
-                g.clear();
 
-                colorSensor.fetchSample(colorSample, 0);
-                ultrasoundSensor.fetchSample(ultrasoundSample, 0);
-                if (colorSample[0] < 0.4) {
-                    float ultrasoundDistance = ultrasoundSample[0];
-                    g.drawString(colorSample[0] + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-                    g.refresh();
+            colorSensor.setCurrentMode("ColorID");
+            colorSensor.fetchSample(colorSample, 0);
 
-                    float error = MID - colorSample[0];
+            if (colorSample[0] != 5) {
 
-                    if (Math.abs(error) < 0.005f) {//zero the integral windup
-                        integral = 0;
+                if (ultrasoundSample[0] > 0.1f) {
+                    g.clear();
+                    colorSensor.setCurrentMode("Red");
+                    colorSensor.fetchSample(colorSample, 0);
+                    ultrasoundSensor.fetchSample(ultrasoundSample, 0);
+                    if (colorSample[0] < 0.4) {
+                        float ultrasoundDistance = ultrasoundSample[0];
+                        g.drawString(colorSample[0] + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                        g.refresh();
+
+                        float error = MID - colorSample[0];
+
+                        if (Math.abs(error) < 0.005f) {//zero the integral windup
+                            integral = 0;
+                        }
+
+                        integral = (integral * (2f / 3f)) + error; //dampen the integral
+                        derivative = error - previousError;
+
+                        pidSpeed(error, derivative, integral, kp, kd, ki);
                     }
 
-                    integral = (integral * (2f / 3f)) + error; //dampen the integral
-                    derivative = error - previousError;
-
-                    pidSpeed(error, derivative, integral, kp, kd, ki);
+                } else {
+                    avoidObstacle();
                 }
-
-            } else {
-                avoidObstacle();
             }
 
             Delay.msDelay(10);
 
         }
+
+        System.exit(0);
     }
 
     private void avoidObstacle() {
 
+
         Sound.twoBeeps();
+        g.clear();
+        g.drawString("Obstacle Found\nBacking up", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+        g.refresh();
+        backUp();
+        g.clear();
+        g.drawString("Obstacle Found\nTurn Right", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+        g.refresh();
         turnRight();
+        g.clear();
+        g.drawString("Obstacle Found\nTurn head", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+        g.refresh();
         ultrasoundMotor.rotateTo(-90);
         float derivative = 0f;
         float integral = 0f;
@@ -108,9 +128,14 @@ public class LineFollowBot {
         while (Math.abs(colorSample[0]) >= 0.12f) {
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
-            float error = 0.07f - ultrasoundSample[0];
-
-            if (Math.abs(error) < 0.005f) {//zero the integral windup
+            float error = 0.095f - ultrasoundSample[0];
+            if (error < -1) {
+                error = -0.03f;
+            }
+            g.clear();
+            g.drawString("Obstacle Found\nTurning Around Obstacle\nDistance from obstacle" + ultrasoundSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+            g.refresh();
+            if (Math.abs(error) < 0.0005f) {//zero the integral windup
                 integral = 0;
             }
 
@@ -121,7 +146,9 @@ public class LineFollowBot {
 
             Delay.msDelay(10);
         }
-
+        g.clear();
+        g.drawString("Obstacle Found\nFound Line\nTurning head back", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+        g.refresh();
         turnRight();
 
         Delay.msDelay(300);
@@ -129,12 +156,22 @@ public class LineFollowBot {
 
     }
 
+    private void backUp() {
+        motorRight.setSpeed(150);
+        motorLeft.setSpeed(150);
+        motorRight.backward();
+        motorLeft.backward();
+        Delay.msDelay(400);
+        motorRight.stop();
+        motorLeft.stop();
+    }
+
     private void turnRight() {
         motorRight.setSpeed(180);
         motorLeft.setSpeed(180);
         motorRight.backward();
         motorLeft.forward();
-        Delay.msDelay(500);
+        Delay.msDelay(700);
 
         motorLeft.stop();
         motorRight.stop();
@@ -142,8 +179,8 @@ public class LineFollowBot {
 
     private void pidSpeed(float proportional, float derivative, float integral, float kp, float kd, float ki) {
         float turn = kp * proportional + kd * derivative + ki * integral;
-        motorLeft.setSpeed((int) (180 - turn));
-        motorRight.setSpeed((int) (180 + turn));
+        motorRight.setSpeed((int) (220 - turn));
+        motorLeft.setSpeed((int) (220 + turn));
 
         motorRight.forward();
         motorLeft.forward();
