@@ -19,7 +19,7 @@ public class PIDController {
         derivative = 0f;
         integral = 0f;
         previousError = 0f;
-        windupvalue = 0.005f;
+        windupvalue = 0.0005f;
     }
 
     public float calculate(float measuredValue) {
@@ -33,5 +33,11 @@ public class PIDController {
         derivative = error - previousError;
 
         return kp * error + kd * derivative + ki * integral;
+    }
+
+    public void reset(){
+        derivative = 0f;
+        integral = 0f;
+        previousError = 0f;
     }
 }
