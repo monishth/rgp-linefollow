@@ -14,15 +14,13 @@ import lejos.robotics.RegulatedMotor;
 import lejos.robotics.SampleProvider;
 import lejos.utility.Delay;
 
-import java.io.File;
-
 public class LineFollowBot {
 
     public static final float BLACK = 0.07f;
     public static final float MID = 0.15f;
     public static final float WHITE = 0.24f;
-    private static float kp = 1600f;
-    private static float kd = 0f;
+    private static float kp = 1500f;
+    private static float kd = 2f;
     private static float ki = 7.5f;
     private RegulatedMotor motorRight;
     private RegulatedMotor motorLeft;
@@ -120,7 +118,7 @@ public class LineFollowBot {
                 //Delay.msDelay(1000);
                 //Sound.playSample(new File("despacito.wav"));
             }
-            Delay.msDelay(10); //keeps a 10sec delay as every cycle is not necessary
+            //Delay.msDelay(10); //keeps a 10sec delay as every cycle is not necessary
         }
         System.exit(0);
     }
@@ -131,7 +129,7 @@ public class LineFollowBot {
         g.clear();
         g.drawString("Obstacle Found\nBacking up", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
-        backUp();
+        backUp(400);
         //Robot turns right
         g.clear();
         g.drawString("Obstacle Found\nTurn Right", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
@@ -153,7 +151,7 @@ public class LineFollowBot {
             g.clear();
             g.drawString("Obstacle Found\nTurning Around Obstacle\nDistance from obstacle" + ultrasoundSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
             g.refresh();
-
+            if (ultrasoundSample[0] == Float.POSITIVE_INFINITY) ultrasoundSample[0] = 0.15f;
             setSpeed(obstacleAvoidController.calculate(ultrasoundSample[0]), 220);
 
             /*float error = 0.095f - ultrasoundSample[0];
@@ -169,39 +167,53 @@ public class LineFollowBot {
 
             pidSpeed(error, derivative, integral, 2000, 0, 0);
 */
-            Delay.msDelay(10);
+            //Delay.msDelay(10);
         }
 
         obstacleAvoidController.reset(); //Resets controller as the previous errors should not affect the next obstacle avoidance
         g.clear();
         g.drawString("Obstacle Found\nFound Line\nTurning head back", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
+        //backUp(600);
         turnRight();
 
         Delay.msDelay(300);
         ultrasoundMotor.rotateTo(0);
+        PIDController lineFinder = new PIDController(1000, 0,0, MID);
+        boolean lineFound = false;
+        int counter = 0;
+        while(counter < 30){
+            colorSensor.fetchSample(colorSample, 0);
+            ultrasoundSensor.fetchSample(ultrasoundSample, 0);
+
+            setSpeed(lineFinder.calculate(colorSample[0]), 50);
+
+            if(colorSample[0] < 0.12f) lineFound = true;
+            if(lineFound) counter++;
+            Delay.msDelay(10);
+        }
 
     }
 
-    private void backUp() {
+    private void backUp(int period) {
         motorRight.setSpeed(150);
         motorLeft.setSpeed(150);
         motorRight.backward();
         motorLeft.backward();
 
-        Delay.msDelay(400);
+        Delay.msDelay(period);
 
         motorRight.stop(true);
-        motorLeft.stop(true);
+        motorLeft.stop();
     }
 
     private void turnRight() {
-        motorRight.setSpeed(180);
-        motorLeft.setSpeed(180);
+        motorRight.setSpeed(150);
+        motorLeft.setSpeed(150);
         motorRight.backward();
         motorLeft.forward();
 
-        Delay.msDelay(700);
+        Delay.msDelay(840);
 
         motorLeft.stop(true);
         motorRight.stop();
