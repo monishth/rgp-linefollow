@@ -25,14 +25,16 @@ public class PIDController {
     public float calculate(float measuredValue) {
         float error = desiredValue - measuredValue;
 
-        if (Math.abs(error) < windupvalue) {//zero the integral if windup needed
+
+        float current = kp * error + kd * derivative + ki * integral;
+        /*if (Math.abs(error) < windupvalue) {//zero the integral if windup needed
             integral = 0;
-        }
+        }*/
 
         integral = (integral * (2f / 3f)) + error;
         derivative = error - previousError;
 
-        return kp * error + kd * derivative + ki * integral;
+        return current;
     }
 
     public void reset(){

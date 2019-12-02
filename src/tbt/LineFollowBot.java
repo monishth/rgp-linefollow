@@ -19,9 +19,9 @@ public class LineFollowBot {
     public static final float BLACK = 0.07f;
     public static final float MID = 0.15f;
     public static final float WHITE = 0.24f;
-    private static float kp = 1500f;
-    private static float kd = 2f;
-    private static float ki = 7.5f;
+    private static float kp = 1400f;
+    private static float kd = 0f;
+    private static float ki = 20f;
     private RegulatedMotor motorRight;
     private RegulatedMotor motorLeft;
     private RegulatedMotor ultrasoundMotor;
@@ -62,7 +62,7 @@ public class LineFollowBot {
 
         //Initialise speed controllers
         lineFollowController = new PIDController(kp, kd, ki, MID);
-        obstacleAvoidController = new PIDController(2000, 0,0, 0.095f);
+        obstacleAvoidController = new PIDController(2000, 0, 0, 0.095f);
     }
 
     public static void main(String[] args) {
@@ -72,6 +72,7 @@ public class LineFollowBot {
 
     public void lineFollow() {
 
+        boolean isStopped = false;
         int colorCheckCounter = 0; //Counter to check for the red stop line
 
         while (!Button.LEFT.isDown()) {
@@ -86,39 +87,37 @@ public class LineFollowBot {
             }
 
             if (redSample[0] != 0) { //If the color sensed is not red then continue following the line
+                isStopped = false;
                 if (ultrasoundSample[0] > 0.1f) { //As long as there is no obstacle within 10cm of the robot continue
                     g.clear();
+
                     colorSensor.fetchSample(colorSample, 0);
                     ultrasoundSensor.fetchSample(ultrasoundSample, 0);
+
                     if (colorSample[0] < 0.4) {
                         float ultrasoundDistance = ultrasoundSample[0];
+
                         g.drawString(colorSample[0] + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
                         g.refresh();
 
                         //set new speed using the newly collected data
                         setSpeed(lineFollowController.calculate(colorSample[0]), 220);
-
-                        /*float error = MID - colorSample[0];
-                        if (Math.abs(error) < 0.005f) {//zero the integral windup
-                            integral = 0;
-                        }
-
-                        integral = (integral * (2f / 3f)) + error; //dampen the integral
-                        derivative = error - previousError;
-
-                        pidSpeed(error, derivative, integral, kp, kd, ki);
-                    */}
-
-                } else{//If an obstacle is closer than 0.1f then avoid it
+                    }
+                } else {//If an obstacle is closer than 0.1f then avoid it
                     avoidObstacle();
                 }
-            }else{//Stop the motors when red is sensed
-                motorLeft.stop(true);
+            } else {//Stop the motors when red is sensed
                 motorRight.stop(true);
-                //Delay.msDelay(1000);
-                //Sound.playSample(new File("despacito.wav"));
+                motorLeft.stop(true);
+                if (!isStopped) {
+                    motorRight.setSpeed(150);
+                    motorRight.backward();
+                    Delay.msDelay(200);
+                    motorRight.stop();
+                    isStopped = true;
+                }
             }
-            //Delay.msDelay(10); //keeps a 10sec delay as every cycle is not necessary
+            Delay.msDelay(10); //keeps a 10sec delay as every cycle is not necessary
         }
         System.exit(0);
     }
@@ -179,17 +178,17 @@ public class LineFollowBot {
 
         Delay.msDelay(300);
         ultrasoundMotor.rotateTo(0);
-        PIDController lineFinder = new PIDController(1000, 0,0, MID);
+        PIDController lineFinder = new PIDController(1000, 0, 0, MID);
         boolean lineFound = false;
         int counter = 0;
-        while(counter < 30){
+        while (counter < 30) {
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
             setSpeed(lineFinder.calculate(colorSample[0]), 50);
 
-            if(colorSample[0] < 0.12f) lineFound = true;
-            if(lineFound) counter++;
+            if (colorSample[0] < 0.12f) lineFound = true;
+            if (lineFound) counter++;
             Delay.msDelay(10);
         }
 
@@ -233,8 +232,8 @@ public class LineFollowBot {
         float right = speed - turn > 0 ? speed - turn : 0;
         float left = speed + turn > 0 ? speed + turn : 0;
 
-        right = (speed - turn) > 2*speed ? 2*speed : (speed-turn);
-        left = (speed + turn) > 2*speed ? 2*speed : (speed+turn);
+        right = (speed - turn) > 2 * speed ? 2 * speed : (speed - turn);
+        left = (speed + turn) > 2 * speed ? 2 * speed : (speed + turn);
         motorRight.setSpeed((int) right);
         motorLeft.setSpeed((int) left);
 
