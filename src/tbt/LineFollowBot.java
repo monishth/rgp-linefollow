@@ -39,24 +39,30 @@ public class LineFollowBot {
     private final PIDController obstacleAvoidController;
 
     public LineFollowBot() {
+        //Setup Motors
         motorRight = new EV3LargeRegulatedMotor(MotorPort.A);
         motorLeft = new EV3LargeRegulatedMotor(MotorPort.B);
         ultrasoundMotor = new EV3MediumRegulatedMotor(MotorPort.C);
 
+        //Setup Sensors
         colorSensor = new EV3ColorSensor(SensorPort.S1);
         ultrasoundSensor = new EV3UltrasonicSensor(SensorPort.S2).getDistanceMode();
 
+        //Setup LCD display
         g = BrickFinder.getDefault().getGraphicsLCD();
         sw = g.getWidth();
         sh = g.getHeight();
 
+        //Create sample variables
         colorSample = new float[colorSensor.sampleSize()];
         ultrasoundSample = new float[ultrasoundSensor.sampleSize()];
-
         redSample = new float[colorSensor.sampleSize()];
+
+        //Initial samples
         colorSensor.fetchSample(colorSample, 0);
         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
+        //Initialise speed controllers
         lineFollowController = new PIDController(kp, kd, ki, MID);
         obstacleAvoidController = new PIDController(2000, 0,0, 0.095f);
     }
@@ -68,21 +74,21 @@ public class LineFollowBot {
 
     public void lineFollow() {
 
-        int counter = 0;
+        int colorCheckCounter = 0; //Counter to check for the red stop line
 
         while (!Button.LEFT.isDown()) {
 
-            counter++;
-            if (counter > 10) {
-                colorSensor.setCurrentMode("ColorID");
+            colorCheckCounter++;
+            if (colorCheckCounter > 10) { //Checks every 10 cycles for red
+                colorSensor.setCurrentMode("ColorID"); //Switches color sensor to give colors instead of light intensity
                 colorSensor.fetchSample(redSample, 0);
                 Delay.msDelay(20);
-                counter = 0;
-                colorSensor.setCurrentMode("Red");
+                colorCheckCounter = 0;
+                colorSensor.setCurrentMode("Red"); //Switches back to light intensity
             }
 
-            if (redSample[0] != 0) {
-                if (ultrasoundSample[0] > 0.1f) {
+            if (redSample[0] != 0) { //If the color sensed is not red then continue following the line
+                if (ultrasoundSample[0] > 0.1f) { //As long as there is no obstacle within 10cm of the robot continue
                     g.clear();
                     colorSensor.fetchSample(colorSample, 0);
                     ultrasoundSensor.fetchSample(ultrasoundSample, 0);
@@ -91,7 +97,9 @@ public class LineFollowBot {
                         g.drawString(colorSample[0] + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
                         g.refresh();
 
+                        //set new speed using the newly collected data
                         setSpeed(lineFollowController.calculate(colorSample[0]), 220);
+
                         /*float error = MID - colorSample[0];
                         if (Math.abs(error) < 0.005f) {//zero the integral windup
                             integral = 0;
@@ -103,30 +111,33 @@ public class LineFollowBot {
                         pidSpeed(error, derivative, integral, kp, kd, ki);
                     */}
 
-                } else{
+                } else{//If an obstacle is closer than 0.1f then avoid it
                     avoidObstacle();
                 }
-            }else{
+            }else{//Stop the motors when red is sensed
                 motorLeft.stop(true);
                 motorRight.stop(true);
                 Delay.msDelay(1000);
                 Sound.playSample(new File("despacito.wav"));
             }
-            Delay.msDelay(10);
+            Delay.msDelay(10); //keeps a 10sec delay as every cycle is not necessary
         }
         System.exit(0);
     }
 
     private void avoidObstacle() {
         Sound.twoBeeps();
+        //Robot backs up
         g.clear();
         g.drawString("Obstacle Found\nBacking up", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
         backUp();
+        //Robot turns right
         g.clear();
         g.drawString("Obstacle Found\nTurn Right", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
         turnRight();
+        //Turns head left to follow obstacle
         g.clear();
         g.drawString("Obstacle Found\nTurn head", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
@@ -135,7 +146,7 @@ public class LineFollowBot {
         colorSensor.fetchSample(colorSample, 0);
         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-        while (Math.abs(colorSample[0]) >= 0.12f) {
+        while (Math.abs(colorSample[0]) >= 0.12f) { //Avoid obstacle until back on line
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
             g.clear();
@@ -160,7 +171,7 @@ public class LineFollowBot {
             Delay.msDelay(10);
         }
 
-        obstacleAvoidController.reset();
+        obstacleAvoidController.reset(); //Resets controller as the previous errors should not affect the next obstacle avoidance
         g.clear();
         g.drawString("Obstacle Found\nFound Line\nTurning head back", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
@@ -176,7 +187,9 @@ public class LineFollowBot {
         motorLeft.setSpeed(150);
         motorRight.backward();
         motorLeft.backward();
+
         Delay.msDelay(400);
+
         motorRight.stop(true);
         motorLeft.stop(true);
     }
