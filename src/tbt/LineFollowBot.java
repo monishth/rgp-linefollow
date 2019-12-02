@@ -221,6 +221,8 @@ public class LineFollowBot {
         float right = speed - turn > 0 ? speed - turn : 0;
         float left = speed + turn > 0 ? speed + turn : 0;
 
+        right = (speed - turn) > 2*speed ? 2*speed : (speed-turn);
+        left = (speed + turn) > 2*speed ? 2*speed : (speed+turn);
         motorRight.setSpeed((int) right);
         motorLeft.setSpeed((int) left);
 
