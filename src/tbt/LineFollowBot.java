@@ -117,8 +117,8 @@ public class LineFollowBot {
             }else{//Stop the motors when red is sensed
                 motorLeft.stop(true);
                 motorRight.stop(true);
-                Delay.msDelay(1000);
-                Sound.playSample(new File("despacito.wav"));
+                //Delay.msDelay(1000);
+                //Sound.playSample(new File("despacito.wav"));
             }
             Delay.msDelay(10); //keeps a 10sec delay as every cycle is not necessary
         }
@@ -141,6 +141,7 @@ public class LineFollowBot {
         g.clear();
         g.drawString("Obstacle Found\nTurn head", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
+
         ultrasoundMotor.rotateTo(-90);
 
         colorSensor.fetchSample(colorSample, 0);
