@@ -203,7 +203,7 @@ public class LineFollowBot {
         Delay.msDelay(700);
 
         motorLeft.stop(true);
-        motorRight.stop(true);
+        motorRight.stop();
     }
 
     /*private void pidSpeed(float proportional, float derivative, float integral, float kp, float kd, float ki) {
@@ -216,8 +216,12 @@ public class LineFollowBot {
     }*/
 
     private void setSpeed(float turn, float speed) {
-        motorRight.setSpeed((int) (speed - turn));
-        motorLeft.setSpeed((int) (speed + turn));
+        //limit speeds to > 0
+        float right = speed - turn > 0 ? speed - turn : 0;
+        float left = speed + turn > 0 ? speed + turn : 0;
+
+        motorRight.setSpeed((int) right);
+        motorLeft.setSpeed((int) left);
 
         motorRight.forward();
         motorLeft.forward();
