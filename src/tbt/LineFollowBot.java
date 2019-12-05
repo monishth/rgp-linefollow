@@ -19,6 +19,7 @@ public class LineFollowBot {
     public static final float BLACK = 0.07f;
     public static final float MID = 0.155f;
     public static final float WHITE = 0.24f;
+    public static final int INTERVAL = 20;
     private static float kp = 1500f;
     private static float kd = 0f;
     private static float ki = 20f;
@@ -74,50 +75,54 @@ public class LineFollowBot {
 
         boolean isStopped = false;
         int colorCheckCounter = 0; //Counter to check for the red stop line
-
+        long lastTime = -1;
         while (!Button.LEFT.isDown()) {
 
-            colorCheckCounter++;
-            if (colorCheckCounter > 10) { //Checks every 10 cycles for red
-                colorSensor.setCurrentMode("ColorID"); //Switches color sensor to give colors instead of light intensity
-                colorSensor.fetchSample(redSample, 0);
-                Delay.msDelay(20);
-                colorCheckCounter = 0;
-                colorSensor.setCurrentMode("Red"); //Switches back to light intensity
-            }
+            if (System.currentTimeMillis()-lastTime >= INTERVAL) {
+                lastTime = System.currentTimeMillis();
+                colorCheckCounter++;
+                if (colorCheckCounter > 10) { //Checks every 10 cycles for red
+                    colorSensor.setCurrentMode("ColorID"); //Switches color sensor to give colors instead of light intensity
+                    colorSensor.fetchSample(redSample, 0);
+                    Delay.msDelay(20);
+                    colorCheckCounter = 0;
+                    colorSensor.setCurrentMode("Red"); //Switches back to light intensity
+                }
 
-            if (redSample[0] != 0) { //If the color sensed is not red then continue following the line
-                isStopped = false;
-                if (ultrasoundSample[0] > 0.1f) { //As long as there is no obstacle within 10cm of the robot continue
-                    g.clear();
+                if (redSample[0] != 0) { //If the color sensed is not red then continue following the line
+                    isStopped = false;
+                    if (ultrasoundSample[0] > 0.1f) { //As long as there is no obstacle within 10cm of the robot continue
+                        g.clear();
 
-                    colorSensor.fetchSample(colorSample, 0);
-                    ultrasoundSensor.fetchSample(ultrasoundSample, 0);
+                        colorSensor.fetchSample(colorSample, 0);
+                        ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-                    if (colorSample[0] < 0.4) {
-                        float ultrasoundDistance = ultrasoundSample[0];
+                        if (colorSample[0] < 0.4) {
+                            float ultrasoundDistance = ultrasoundSample[0];
 
-                        g.drawString(colorSample[0] + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-                        g.refresh();
+                            g.drawString(colorSample[0] + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                            g.refresh();
 
-                        //set new speed using the newly collected data
-                        setSpeed(lineFollowController.calculate(colorSample[0]), 220);
+                            //set new speed using the newly collected data
+                            setSpeed(lineFollowController.calculate(colorSample[0]), 220);
+                        }
+                    } else {//If an obstacle is closer than 0.1f then avoid it
+                        avoidObstacle();
                     }
-                } else {//If an obstacle is closer than 0.1f then avoid it
-                    avoidObstacle();
+                } else {//Stop the motors when red is sensed
+                    motorRight.stop(true);
+                    motorLeft.stop(true);
+                    if (!isStopped) {
+                        motorRight.setSpeed(150);
+                        motorRight.backward();
+                        Delay.msDelay(200);
+                        motorRight.stop();
+                        isStopped = true;
+                    }
                 }
-            } else {//Stop the motors when red is sensed
-                motorRight.stop(true);
-                motorLeft.stop(true);
-                if (!isStopped) {
-                    motorRight.setSpeed(150);
-                    motorRight.backward();
-                    Delay.msDelay(200);
-                    motorRight.stop();
-                    isStopped = true;
-                }
+
+                //Delay.msDelay(10); //keeps a 10sec delay as every cycle is not necessary
             }
-            Delay.msDelay(10); //keeps a 10sec delay as every cycle is not necessary
         }
         System.exit(0);
     }
@@ -150,7 +155,7 @@ public class LineFollowBot {
             g.clear();
             g.drawString(String.valueOf(ultrasoundSample[0]), sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
             g.refresh();
-            if (ultrasoundSample[0] >= 1) ultrasoundSample[0] = 0.55f;
+            if (ultrasoundSample[0] >= 1){ ultrasoundSample[0] = 0.12f;}
             setSpeed(obstacleAvoidController.calculate(ultrasoundSample[0]), 220);
 
         }
