@@ -17,9 +17,9 @@ import lejos.utility.Delay;
 public class LineFollowBot {
 
     public static final float BLACK = 0.07f;
-    public static final float MID = 0.15f;
+    public static final float MID = 0.155f;
     public static final float WHITE = 0.24f;
-    private static float kp = 1400f;
+    private static float kp = 1500f;
     private static float kd = 0f;
     private static float ki = 20f;
     private RegulatedMotor motorRight;
@@ -144,29 +144,15 @@ public class LineFollowBot {
         colorSensor.fetchSample(colorSample, 0);
         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-        while (Math.abs(colorSample[0]) >= 0.12f) { //Avoid obstacle until back on line
+        while (Math.abs(colorSample[0]) >= 0.13f) { //Avoid obstacle until back on line
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
             g.clear();
-            g.drawString("Obstacle Found\nTurning Around Obstacle\nDistance from obstacle" + ultrasoundSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+            g.drawString(String.valueOf(ultrasoundSample[0]), sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
             g.refresh();
-            if (ultrasoundSample[0] == Float.POSITIVE_INFINITY) ultrasoundSample[0] = 0.15f;
+            if (ultrasoundSample[0] >= 1) ultrasoundSample[0] = 0.55f;
             setSpeed(obstacleAvoidController.calculate(ultrasoundSample[0]), 220);
 
-            /*float error = 0.095f - ultrasoundSample[0];
-            if (error < -1) {
-                error = -0.03f;
-            }
-            if (Math.abs(error) < 0.0005f) {//zero the integral windup
-                integral = 0;
-            }
-
-            integral = (integral * (2f / 3f)) + error;
-            derivative = error - previousError;
-
-            pidSpeed(error, derivative, integral, 2000, 0, 0);
-*/
-            //Delay.msDelay(10);
         }
 
         obstacleAvoidController.reset(); //Resets controller as the previous errors should not affect the next obstacle avoidance
@@ -175,13 +161,15 @@ public class LineFollowBot {
         g.refresh();
         //backUp(600);
         turnRight();
-
+        backUp(100);
         Delay.msDelay(300);
         ultrasoundMotor.rotateTo(0);
+
+        //Follow the line slower so it catches the line without going over it
         PIDController lineFinder = new PIDController(1000, 0, 0, MID);
         boolean lineFound = false;
         int counter = 0;
-        while (counter < 30) {
+        while (counter < 250) {
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 

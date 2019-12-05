@@ -1,3 +1,7 @@
 black = 0.07
 white = 0.26
 half = 0.14
+
+private static float kp = 1400f;
+    private static float kd = 0f;
+    private static float ki = 20f;
