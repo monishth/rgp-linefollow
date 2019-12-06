@@ -16,13 +16,13 @@ import lejos.utility.Delay;
 
 public class LineFollowBot {
 
-    public static final float BLACK = 0.07f;
-    public static final float MID = 0.155f;
-    public static final float WHITE = 0.24f;
-    public static final int INTERVAL = 20;
-    private static float kp = 1500f;
-    private static float kd = 0f;
-    private static float ki = 20f;
+    public static final float BLACK = 0.10f;
+    public static final float MID = 0.50f;
+    public static final float WHITE = 1.00f;
+    public static final int INTERVAL = 50;
+    private static float kp = 240f;
+    private static float kd = 4f;
+    private static float ki = 15f;
     private RegulatedMotor motorRight;
     private RegulatedMotor motorLeft;
     private RegulatedMotor ultrasoundMotor;
@@ -34,7 +34,7 @@ public class LineFollowBot {
     private int sw;
     private int sh;
     private GraphicsLCD g;
-    private final PIDController lineFollowController;
+    private PIDController lineFollowController;
     private final PIDController obstacleAvoidController;
 
     public LineFollowBot() {
@@ -44,7 +44,7 @@ public class LineFollowBot {
         ultrasoundMotor = new EV3MediumRegulatedMotor(MotorPort.C);
 
         //Setup Sensors
-        colorSensor = new EV3ColorSensor(SensorPort.S1);
+        colorSensor = new EV3ColorSensor(SensorPort.S3);
         ultrasoundSensor = new EV3UltrasonicSensor(SensorPort.S2).getDistanceMode();
 
         //Setup LCD display
@@ -63,7 +63,7 @@ public class LineFollowBot {
 
         //Initialise speed controllers
         lineFollowController = new PIDController(kp, kd, ki, MID);
-        obstacleAvoidController = new PIDController(2000, 0, 0, 0.095f);
+        obstacleAvoidController = new PIDController(400, 0, 0, 0.095f);
     }
 
     public static void main(String[] args) {
@@ -76,7 +76,65 @@ public class LineFollowBot {
         boolean isStopped = false;
         int colorCheckCounter = 0; //Counter to check for the red stop line
         long lastTime = -1;
+        int changingConstant = 0;
         while (!Button.LEFT.isDown()) {
+
+            if(Button.RIGHT.isDown()){
+                changingConstant = (changingConstant+1)%3;
+            }
+            if(Button.UP.isDown()){
+                switch (changingConstant) {
+                    case 0:
+                        kp += 10;
+                        lineFollowController = new PIDController(kp, kd, ki, MID);
+                        Delay.msDelay(100);
+                        break;
+                    case 1:
+                        ki += 1;
+                        lineFollowController = new PIDController(kp, kd, ki, MID);
+                        Delay.msDelay(100);
+                        break;
+                    case 2:
+                        kd += 1;
+                        lineFollowController = new PIDController(kp, kd, ki, MID);
+                        Delay.msDelay(100);
+                        break;
+                }
+            }
+
+            if(Button.DOWN.isDown()){
+                switch (changingConstant) {
+                    case 0:
+                        kp -= 100;
+                        lineFollowController = new PIDController(kp, kd, ki, MID);
+                        Delay.msDelay(100);
+                        break;
+                    case 1:
+                        ki -= 1;
+                        lineFollowController = new PIDController(kp, kd, ki, MID);
+                        Delay.msDelay(100);
+                        break;
+                    case 2:
+                        kd -= 1;
+                        lineFollowController = new PIDController(kp, kd, ki, MID);
+                        Delay.msDelay(100);
+                        break;
+                }
+            }
+
+            g.clear();
+            switch (changingConstant) {
+                case 0:
+                    g.drawString("kp = " + kp+"\n"+colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                    break;
+                case 1:
+                    g.drawString("ki = " + ki+"\n"+colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                    break;
+                case 2:
+                    g.drawString("kd = " + kd+"\n"+colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                    break;
+            }
+            g.refresh();
 
             if (System.currentTimeMillis()-lastTime >= INTERVAL) {
                 lastTime = System.currentTimeMillis();
@@ -92,20 +150,12 @@ public class LineFollowBot {
                 if (redSample[0] != 0) { //If the color sensed is not red then continue following the line
                     isStopped = false;
                     if (ultrasoundSample[0] > 0.1f) { //As long as there is no obstacle within 10cm of the robot continue
-                        g.clear();
 
                         colorSensor.fetchSample(colorSample, 0);
                         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-                        if (colorSample[0] < 0.4) {
-                            float ultrasoundDistance = ultrasoundSample[0];
-
-                            g.drawString(colorSample[0] + " : " + ultrasoundDistance + " m ", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-                            g.refresh();
-
-                            //set new speed using the newly collected data
-                            setSpeed(lineFollowController.calculate(colorSample[0]), 220);
-                        }
+                        //set new speed using the newly collected data
+                        setSpeed(lineFollowController.calculate(colorSample[0]), 220);
                     } else {//If an obstacle is closer than 0.1f then avoid it
                         avoidObstacle();
                     }
@@ -138,7 +188,7 @@ public class LineFollowBot {
         g.clear();
         g.drawString("Obstacle Found\nTurn Right", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
-        turnRight();
+        turnRight(840);
         //Turns head left to follow obstacle
         g.clear();
         g.drawString("Obstacle Found\nTurn head", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
@@ -149,13 +199,13 @@ public class LineFollowBot {
         colorSensor.fetchSample(colorSample, 0);
         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-        while (Math.abs(colorSample[0]) >= 0.13f) { //Avoid obstacle until back on line
+        while (Math.abs(colorSample[0]) >= MID-0.1) { //Avoid obstacle until back on line
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
             g.clear();
             g.drawString(String.valueOf(ultrasoundSample[0]), sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
             g.refresh();
-            if (ultrasoundSample[0] >= 1){ ultrasoundSample[0] = 0.12f;}
+            if (ultrasoundSample[0] >= 0.3){ ultrasoundSample[0] = 0.3f;}
             setSpeed(obstacleAvoidController.calculate(ultrasoundSample[0]), 220);
 
         }
@@ -165,22 +215,22 @@ public class LineFollowBot {
         g.drawString("Obstacle Found\nFound Line\nTurning head back", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
         //backUp(600);
-        turnRight();
+        turnRight(1340);
         backUp(100);
         Delay.msDelay(300);
         ultrasoundMotor.rotateTo(0);
 
         //Follow the line slower so it catches the line without going over it
-        PIDController lineFinder = new PIDController(1000, 0, 0, MID);
+        PIDController lineFinder = new PIDController(200, 0, 0, MID);
         boolean lineFound = false;
         int counter = 0;
         while (counter < 250) {
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-            setSpeed(lineFinder.calculate(colorSample[0]), 50);
+            setSpeed(lineFinder.calculate(colorSample[0]), 100);
 
-            if (colorSample[0] < 0.12f) lineFound = true;
+            if (colorSample[0] < MID) lineFound = true;
             if (lineFound) counter++;
             Delay.msDelay(10);
         }
@@ -199,13 +249,13 @@ public class LineFollowBot {
         motorLeft.stop();
     }
 
-    private void turnRight() {
+    private void turnRight(int period) {
         motorRight.setSpeed(150);
         motorLeft.setSpeed(150);
         motorRight.backward();
         motorLeft.forward();
 
-        Delay.msDelay(840);
+        Delay.msDelay(period);
 
         motorLeft.stop(true);
         motorRight.stop();
