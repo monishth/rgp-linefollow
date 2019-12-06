@@ -17,12 +17,12 @@ import lejos.utility.Delay;
 public class LineFollowBot {
 
     public static final float BLACK = 0.10f;
-    public static final float MID = 0.50f;
+    public static final float MID = 0.14f;
     public static final float WHITE = 1.00f;
-    public static final int INTERVAL = 50;
-    private static float kp = 240f;
-    private static float kd = 4f;
-    private static float ki = 15f;
+    public static final int INTERVAL = 20;
+    private static float kp = 1200f;
+    private static float kd = 20f;
+    private static float ki = 100f;
     private RegulatedMotor motorRight;
     private RegulatedMotor motorLeft;
     private RegulatedMotor ultrasoundMotor;
@@ -63,7 +63,7 @@ public class LineFollowBot {
 
         //Initialise speed controllers
         lineFollowController = new PIDController(kp, kd, ki, MID);
-        obstacleAvoidController = new PIDController(400, 0, 0, 0.095f);
+        obstacleAvoidController = new PIDController(2000, 0, 0, 0.095f);
     }
 
     public static void main(String[] args) {
@@ -85,7 +85,7 @@ public class LineFollowBot {
             if(Button.UP.isDown()){
                 switch (changingConstant) {
                     case 0:
-                        kp += 10;
+                        kp += 100;
                         lineFollowController = new PIDController(kp, kd, ki, MID);
                         Delay.msDelay(100);
                         break;
@@ -154,8 +154,13 @@ public class LineFollowBot {
                         colorSensor.fetchSample(colorSample, 0);
                         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-                        //set new speed using the newly collected data
-                        setSpeed(lineFollowController.calculate(colorSample[0]), 220);
+                        if (colorSample[0] < 0.4) {
+                            float ultrasoundDistance = ultrasoundSample[0];
+
+
+                            //set new speed using the newly collected data
+                            setSpeed(lineFollowController.calculate(colorSample[0]), 220);
+                        }
                     } else {//If an obstacle is closer than 0.1f then avoid it
                         avoidObstacle();
                     }
@@ -199,7 +204,7 @@ public class LineFollowBot {
         colorSensor.fetchSample(colorSample, 0);
         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
-        while (Math.abs(colorSample[0]) >= MID-0.1) { //Avoid obstacle until back on line
+        while (Math.abs(colorSample[0]) >= 0.13f) { //Avoid obstacle until back on line
             colorSensor.fetchSample(colorSample, 0);
             ultrasoundSensor.fetchSample(ultrasoundSample, 0);
             g.clear();
@@ -221,7 +226,7 @@ public class LineFollowBot {
         ultrasoundMotor.rotateTo(0);
 
         //Follow the line slower so it catches the line without going over it
-        PIDController lineFinder = new PIDController(200, 0, 0, MID);
+        PIDController lineFinder = new PIDController(1000, 0, 0, MID);
         boolean lineFound = false;
         int counter = 0;
         while (counter < 250) {
@@ -230,7 +235,7 @@ public class LineFollowBot {
 
             setSpeed(lineFinder.calculate(colorSample[0]), 100);
 
-            if (colorSample[0] < MID) lineFound = true;
+            if (colorSample[0] < 0.12f) lineFound = true;
             if (lineFound) counter++;
             Delay.msDelay(10);
         }
