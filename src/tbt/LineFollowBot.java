@@ -20,9 +20,9 @@ public class LineFollowBot {
     public static final float MID = 0.14f;
     public static final float WHITE = 1.00f;
     public static final int INTERVAL = 20;
-    private static float kp = 1200f;
-    private static float kd = 20f;
-    private static float ki = 100f;
+    private static float kp = 1300f;
+    private static float kd = 5f;
+    private static float ki = 10f;
     private RegulatedMotor motorRight;
     private RegulatedMotor motorLeft;
     private RegulatedMotor ultrasoundMotor;
@@ -159,7 +159,7 @@ public class LineFollowBot {
 
 
                             //set new speed using the newly collected data
-                            setSpeed(lineFollowController.calculate(colorSample[0]), 220);
+                            setSpeed(lineFollowController.calculate(colorSample[0]), 180);
                         }
                     } else {//If an obstacle is closer than 0.1f then avoid it
                         avoidObstacle();
@@ -280,8 +280,8 @@ public class LineFollowBot {
         float right = speed - turn > 0 ? speed - turn : 0;
         float left = speed + turn > 0 ? speed + turn : 0;
 
-        right = (speed - turn) > 2 * speed ? 2 * speed : (speed - turn);
-        left = (speed + turn) > 2 * speed ? 2 * speed : (speed + turn);
+        right = (speed - turn) > 3 * speed ? 3 * speed : (speed - turn);
+        left = (speed + turn) > 3 * speed ? 3 * speed : (speed + turn);
         motorRight.setSpeed((int) right);
         motorLeft.setSpeed((int) left);
 
