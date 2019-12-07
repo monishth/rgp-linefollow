@@ -81,7 +81,7 @@ public class LineFollowBot {
         int selected = 0;
         while (!Button.LEFT.isDown()) {
 
-            //Code to adjust
+            //Code to adjust line following pid constants
             if(Button.RIGHT.isDown()){
                 selected = (selected+1)%3;
             }
