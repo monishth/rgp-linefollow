@@ -36,6 +36,7 @@ public class LineFollowBot {
     private GraphicsLCD g;
     private PIDController lineFollowController;
     private final PIDController obstacleAvoidController;
+    private final PIDController lineFinder;
 
     public LineFollowBot() {
         //Setup Motors
@@ -64,6 +65,7 @@ public class LineFollowBot {
         //Initialise speed controllers
         lineFollowController = new PIDController(kp, kd, ki, MID);
         obstacleAvoidController = new PIDController(2000, 0, 0, 0.095f);
+        lineFinder = new PIDController(1000, 0, 0, MID);
     }
 
     public static void main(String[] args) {
@@ -76,14 +78,15 @@ public class LineFollowBot {
         boolean isStopped = false;
         int colorCheckCounter = 0; //Counter to check for the red stop line
         long lastTime = -1;
-        int changingConstant = 0;
+        int selected = 0;
         while (!Button.LEFT.isDown()) {
 
+            //Code to adjust
             if(Button.RIGHT.isDown()){
-                changingConstant = (changingConstant+1)%3;
+                selected = (selected+1)%3;
             }
             if(Button.UP.isDown()){
-                switch (changingConstant) {
+                switch (selected) {
                     case 0:
                         kp += 100;
                         lineFollowController = new PIDController(kp, kd, ki, MID);
@@ -103,7 +106,7 @@ public class LineFollowBot {
             }
 
             if(Button.DOWN.isDown()){
-                switch (changingConstant) {
+                switch (selected) {
                     case 0:
                         kp -= 100;
                         lineFollowController = new PIDController(kp, kd, ki, MID);
@@ -122,8 +125,9 @@ public class LineFollowBot {
                 }
             }
 
+            //print the currently selected constant
             g.clear();
-            switch (changingConstant) {
+            switch (selected) {
                 case 0:
                     g.drawString("kp = " + kp+"\n"+colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
                     break;
@@ -136,7 +140,7 @@ public class LineFollowBot {
             }
             g.refresh();
 
-            if (System.currentTimeMillis()-lastTime >= INTERVAL) {
+            if (System.currentTimeMillis()-lastTime >= INTERVAL) {//Limits loop to sample interval
                 lastTime = System.currentTimeMillis();
                 colorCheckCounter++;
                 if (colorCheckCounter > 10) { //Checks every 10 cycles for red
@@ -155,9 +159,6 @@ public class LineFollowBot {
                         ultrasoundSensor.fetchSample(ultrasoundSample, 0);
 
                         if (colorSample[0] < 0.4) {
-                            float ultrasoundDistance = ultrasoundSample[0];
-
-
                             //set new speed using the newly collected data
                             setSpeed(lineFollowController.calculate(colorSample[0]), 180);
                         }
@@ -198,7 +199,6 @@ public class LineFollowBot {
         g.clear();
         g.drawString("Obstacle Found\nTurn head", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
         g.refresh();
-
         ultrasoundMotor.rotateTo(-90);
 
         colorSensor.fetchSample(colorSample, 0);
@@ -210,23 +210,21 @@ public class LineFollowBot {
             g.clear();
             g.drawString(String.valueOf(ultrasoundSample[0]), sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
             g.refresh();
+            //Too high of an error destablises the movement so cap the distance at 30cm so the response is not too high
             if (ultrasoundSample[0] >= 0.3){ ultrasoundSample[0] = 0.3f;}
             setSpeed(obstacleAvoidController.calculate(ultrasoundSample[0]), 220);
 
         }
 
         obstacleAvoidController.reset(); //Resets controller as the previous errors should not affect the next obstacle avoidance
-        g.clear();
-        g.drawString("Obstacle Found\nFound Line\nTurning head back", sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
-        g.refresh();
-        //backUp(600);
+        //turns right to try and be parallel to the line again
         turnRight(1340);
         backUp(100);
         Delay.msDelay(300);
+        //Return head to face forward
         ultrasoundMotor.rotateTo(0);
 
-        //Follow the line slower so it catches the line without going over it
-        PIDController lineFinder = new PIDController(1000, 0, 0, MID);
+        //Follow the line slower and with a lower turn rate so the robot catches the line better
         boolean lineFound = false;
         int counter = 0;
         while (counter < 250) {
@@ -239,6 +237,7 @@ public class LineFollowBot {
             if (lineFound) counter++;
             Delay.msDelay(10);
         }
+        lineFinder.reset();
 
     }
 
@@ -266,22 +265,11 @@ public class LineFollowBot {
         motorRight.stop();
     }
 
-    /*private void pidSpeed(float proportional, float derivative, float integral, float kp, float kd, float ki) {
-        float turn = kp * proportional + kd * derivative + ki * integral;
-        motorRight.setSpeed((int) (220 - turn));
-        motorLeft.setSpeed((int) (220 + turn));
-
-        motorRight.forward();
-        motorLeft.forward();
-    }*/
 
     private void setSpeed(float turn, float speed) {
-        //limit speeds to > 0
-        float right = speed - turn > 0 ? speed - turn : 0;
-        float left = speed + turn > 0 ? speed + turn : 0;
-
-        right = (speed - turn) > 3 * speed ? 3 * speed : (speed - turn);
-        left = (speed + turn) > 3 * speed ? 3 * speed : (speed + turn);
+        //capping speeds to 3 time the equlibrium speed
+        float right = (speed - turn) > 3 * speed ? 3 * speed : (speed - turn);
+        float left = (speed + turn) > 3 * speed ? 3 * speed : (speed + turn);
         motorRight.setSpeed((int) right);
         motorLeft.setSpeed((int) left);
 
