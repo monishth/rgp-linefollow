@@ -23,6 +23,8 @@ public class LineFollowBot {
     private static float kp = 1300f;
     private static float kd = 5f;
     private static float ki = 10f;
+    private final PIDController obstacleAvoidController;
+    private final PIDController lineFinder;
     private RegulatedMotor motorRight;
     private RegulatedMotor motorLeft;
     private RegulatedMotor ultrasoundMotor;
@@ -35,8 +37,6 @@ public class LineFollowBot {
     private int sh;
     private GraphicsLCD g;
     private PIDController lineFollowController;
-    private final PIDController obstacleAvoidController;
-    private final PIDController lineFinder;
 
     public LineFollowBot() {
         //Setup Motors
@@ -82,10 +82,10 @@ public class LineFollowBot {
         while (!Button.LEFT.isDown()) {
 
             //Code to adjust line following pid constants
-            if(Button.RIGHT.isDown()){
-                selected = (selected+1)%3;
+            if (Button.RIGHT.isDown()) {
+                selected = (selected + 1) % 3;
             }
-            if(Button.UP.isDown()){
+            if (Button.UP.isDown()) {
                 switch (selected) {
                     case 0:
                         kp += 100;
@@ -105,7 +105,7 @@ public class LineFollowBot {
                 }
             }
 
-            if(Button.DOWN.isDown()){
+            if (Button.DOWN.isDown()) {
                 switch (selected) {
                     case 0:
                         kp -= 100;
@@ -129,18 +129,18 @@ public class LineFollowBot {
             g.clear();
             switch (selected) {
                 case 0:
-                    g.drawString("kp = " + kp+"\n"+colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                    g.drawString("kp = " + kp + "\n" + colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
                     break;
                 case 1:
-                    g.drawString("ki = " + ki+"\n"+colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                    g.drawString("ki = " + ki + "\n" + colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
                     break;
                 case 2:
-                    g.drawString("kd = " + kd+"\n"+colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
+                    g.drawString("kd = " + kd + "\n" + colorSample[0], sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
                     break;
             }
             g.refresh();
 
-            if (System.currentTimeMillis()-lastTime >= INTERVAL) {//Limits loop to sample interval
+            if (System.currentTimeMillis() - lastTime >= INTERVAL) {//Limits loop to sample interval
                 lastTime = System.currentTimeMillis();
                 colorCheckCounter++;
                 if (colorCheckCounter > 10) { //Checks every 10 cycles for red
@@ -211,8 +211,10 @@ public class LineFollowBot {
             g.drawString(String.valueOf(ultrasoundSample[0]), sw / 2, sh / 2, GraphicsLCD.BASELINE | GraphicsLCD.HCENTER);
             g.refresh();
             //Too high of an error destablises the movement so cap the distance at 30cm so the response is not too high
-            if (ultrasoundSample[0] >= 0.3){ ultrasoundSample[0] = 0.3f;}
-            setSpeed(obstacleAvoidController.calculate(ultrasoundSample[0]), 220);
+            if (ultrasoundSample[0] >= 0.3) {
+                ultrasoundSample[0] = 0.3f;
+            }
+            setSpeed(obstacleAvoidController.calculate(ultrasoundSample[0]), 220); //keeps a steady distance from the obstacle
 
         }
 
