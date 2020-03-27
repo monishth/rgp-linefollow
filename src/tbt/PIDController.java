@@ -27,7 +27,7 @@ public class PIDController {
 
         integral = (integral * (2f / 3f)) + error; //Integral windup. Each time the integral is calculated the previous integral has a smaller effect
         derivative = error - previousError;
-
+        previousError = error;
         return current;
     }
 
